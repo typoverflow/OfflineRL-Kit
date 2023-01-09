@@ -25,6 +25,7 @@ class MBPolicyTrainer:
         rollout_setting: Tuple[int, int, int],
         epoch: int = 1000,
         step_per_epoch: int = 1000,
+        dynamics_update_freq: int = 0, 
         batch_size: int = 256,
         real_ratio: float = 0.05,
         eval_episodes: int = 10,
@@ -42,6 +43,7 @@ class MBPolicyTrainer:
 
         self._epoch = epoch
         self._step_per_epoch = step_per_epoch
+        self._dynamics_update_freq = dynamics_update_freq
         self._batch_size = batch_size
         self._real_ratio = real_ratio
         self._eval_episodes = eval_episodes
@@ -81,6 +83,12 @@ class MBPolicyTrainer:
 
                 for k, v in loss.items():
                     self.logger.logkv_mean(k, v)
+                    
+                # update dynamics_model
+                if self._dynamics_update_freq > 0 and (num_timesteps+1) % self._dynamics_update_freq == 0:
+                    dynamics_update_info = self.policy.update_dynamics(self.real_buffer)
+                    for k, v in dynamics_update_info.items():
+                        self.logger.logkv_mean(k, v)
                 
                 num_timesteps += 1
 
