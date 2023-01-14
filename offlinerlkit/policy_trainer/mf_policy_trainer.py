@@ -58,8 +58,8 @@ class MFPolicyTrainer:
                 loss = self.policy.learn(batch)
                 pbar.set_postfix(**loss)
 
-                for k, v in loss.items():
-                    self.logger.logkv_mean(k, v)
+                # for k, v in loss.items():
+                    # self.logger.logkv_mean(k, v)
                 
                 num_timesteps += 1
 
@@ -73,19 +73,28 @@ class MFPolicyTrainer:
             norm_ep_rew_mean = self.eval_env.get_normalized_score(ep_reward_mean) * 100
             norm_ep_rew_std = self.eval_env.get_normalized_score(ep_reward_std) * 100
             last_10_performance.append(norm_ep_rew_mean)
-            self.logger.logkv("eval/normalized_episode_reward", norm_ep_rew_mean)
-            self.logger.logkv("eval/normalized_episode_reward_std", norm_ep_rew_std)
-            self.logger.logkv("eval/episode_length", ep_length_mean)
-            self.logger.logkv("eval/episode_length_std", ep_length_std)
-            self.logger.set_timestep(num_timesteps)
-            self.logger.dumpkvs()
+            self.logger.log_scalars(
+                "eval", 
+                {
+                    "normalized_episode_reward": norm_ep_rew_mean, 
+                    "normalized_episode_reward_std": norm_ep_rew_std, 
+                    "episode_length": ep_length_mean, 
+                    "episode_length_std": ep_length_std
+                }, 
+                step=num_timesteps
+            )
+            self.logger.log_scalars(
+                "", 
+                loss, 
+                step=num_timesteps
+            )
         
             # save checkpoint
-            torch.save(self.policy.state_dict(), os.path.join(self.logger.checkpoint_dir, "policy.pth"))
+            if e % 10 == 0:
+                self.logger.log_object(f"policy_{e}.pt", self.policy.state_dict())
 
-        self.logger.log("total time: {:.2f}s".format(time.time() - start_time))
-        torch.save(self.policy.state_dict(), os.path.join(self.logger.model_dir, "policy.pth"))
-        self.logger.close()
+        self.logger.info("total time: {:.2f}s".format(time.time() - start_time))
+        self.logger.log_object("policy_final.pt", self.policy.state_dict())
 
         return {"last_10_performance": np.mean(last_10_performance)}
 
