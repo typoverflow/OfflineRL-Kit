@@ -19,6 +19,7 @@ from offlinerlkit.utils.logger import Logger, make_log_dirs
 from offlinerlkit.policy_trainer import MFPolicyTrainer
 from offlinerlkit.policy import TD3BCPolicy
 
+from UtilsRL.exp import select_free_cuda
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -38,7 +39,11 @@ def get_args():
     parser.add_argument("--step-per-epoch", type=int, default=1000)
     parser.add_argument("--eval_episodes", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", type=str, default=select_free_cuda())
+    
+    parser.add_argument("--permute", type=str, default=None)
+    parser.add_argument("--permute-amp", type=float, default=1.)
+    parser.add_argument("--exp_name", type=str, default=None)
 
     return parser.parse_args()
 
@@ -103,15 +108,30 @@ def train(args=get_args()):
     buffer.load_dataset(dataset)
 
     # log
-    log_dirs = make_log_dirs(args.task, args.algo_name, args.seed, vars(args))
-    # key: output file name, value: output handler type
-    output_config = {
-        "consoleout_backup": "stdout",
-        "policy_training_progress": "csv",
-        "tb": "tensorboard"
+    # log_dirs = make_log_dirs(args.task, args.algo_name, args.seed, vars(args))
+    # # key: output file name, value: output handler type
+    # output_config = {
+    #     "consoleout_backup": "stdout",
+    #     "policy_training_progress": "csv",
+    #     "tb": "tensorboard"
+    # }
+    # logger = Logger(log_dirs, output_config)
+    # logger.log_hyperparameters(vars(args))
+    from UtilsRL.logger import CompositeLogger
+    loggers_config = {
+        "FileLogger": {"activate": True}, 
+        "TensorboardLogger": {"activate": True}, 
+        "WandbLogger": {"activate": True, "project": args.algo_name+"-"+args.task, "entity": "typoverflow", "exp_args": args}
     }
-    logger = Logger(log_dirs, output_config)
-    logger.log_hyperparameters(vars(args))
+    log_path = os.path.join("log", args.algo_name, args.task)
+    exp_name = [args.exp_name] if args.exp_name else []
+    if args.permute is None:
+        exp_name.append("normal")
+    else:
+        exp_name.append(args.permute)
+        exp_name.append(args.permute_amp)
+    exp_name = "-".join(exp_name)
+    logger = CompositeLogger(log_path=log_path, name=exp_name, loggers_config=loggers_config)
 
     # create policy trainer
     policy_trainer = MFPolicyTrainer(
