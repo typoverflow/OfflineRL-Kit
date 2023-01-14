@@ -11,7 +11,7 @@ all_quality=(
     "random"
 )
 
-seed=$3
+seed=$1
 
 name=${cql_weight}-${lagrange}
 
