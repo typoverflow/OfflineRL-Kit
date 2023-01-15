@@ -1,3 +1,4 @@
+export PYTHONPATH=".":${PATHONPATH}
 all_domain=(
     # "halfcheetah"
     "hopper"
