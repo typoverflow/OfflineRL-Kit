@@ -154,17 +154,22 @@ class EnsembleDynamics(BaseDynamics):
 
         epoch = 0
         cnt = 0
-        logger.log("Training dynamics:")
+        # logger.log("Training dynamics:")
+        logger.info("Training dynamics")
         while True:
             epoch += 1
             train_loss = self.learn(train_inputs[data_idxes], train_targets[data_idxes])
             new_holdout_losses = self.validate(holdout_inputs, holdout_targets)
             holdout_loss = (np.sort(new_holdout_losses)[:self.model.num_elites]).mean()
-            logger.logkv("loss/dynamics_train_loss", train_loss)
-            logger.logkv("loss/dynamics_holdout_loss", holdout_loss)
-            logger.set_timestep(epoch)
-            logger.dumpkvs(exclude=["policy_training_progress"])
-
+            logger.log_scalars(
+                "loss", 
+                {
+                    "dynamics_train_loss": train_loss, 
+                    "dynamics_holdout_loss": holdout_loss
+                }, 
+                step=epoch
+            )
+            logger.info(f"Epoch: {epoch}, train loss {train_loss}, holdout loss {holdout_loss}")
             # shuffle data for each base learner
             data_idxes = shuffle_rows(data_idxes)
 
@@ -187,9 +192,12 @@ class EnsembleDynamics(BaseDynamics):
         indexes = self.select_elites(holdout_losses)
         self.model.set_elites(indexes)
         self.model.load_save()
-        self.save(logger.model_dir)
+        save_path = os.path.join(logger.output_path, "pretrain")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        self.save(save_path)
         self.model.eval()
-        logger.log("elites:{} , holdout loss: {}".format(indexes, (np.sort(holdout_losses)[:self.model.num_elites]).mean()))
+        logger.info("elites:{} , holdout loss: {}".format(indexes, (np.sort(holdout_losses)[:self.model.num_elites]).mean()))
     
     def learn(self, inputs: np.ndarray, targets: np.ndarray, batch_size: int = 256) -> float:
         self.model.train()

@@ -63,6 +63,7 @@ class MBPolicyTrainer:
 
         num_timesteps = 0
         last_10_performance = deque(maxlen=10)
+        dynamics_update_info = rollout_info = None
         # train loop
         for e in range(1, self._epoch + 1):
 
@@ -74,12 +75,12 @@ class MBPolicyTrainer:
                     init_obss = self.real_buffer.sample(self._rollout_batch_size)["observations"].cpu().numpy()
                     rollout_transitions, rollout_info = self.policy.rollout(init_obss, self._rollout_length)
                     self.fake_buffer.add_batch(**rollout_transitions)
-                    self.logger.log(
+                    self.logger.info(
                         "num rollout transitions: {}, reward mean: {:.4f}".\
                             format(rollout_info["num_transitions"], rollout_info["reward_mean"])
                     )
-                    for _key, _value in rollout_transitions.items():
-                        self.logger.logkv_mean("rollout_info/"+_key, _value)
+                    # for _key, _value in rollout_transitions.items():
+                    #     self.logger.logkv_mean("rollout_info/"+_key, _value)
 
                 real_sample_size = int(self._batch_size * self._real_ratio)
                 fake_sample_size = self._batch_size - real_sample_size
@@ -89,14 +90,15 @@ class MBPolicyTrainer:
                 loss = self.policy.learn(batch)
                 pbar.set_postfix(**loss)
 
-                for k, v in loss.items():
-                    self.logger.logkv_mean(k, v)
+                # for k, v in loss.items():
+                    # self.logger.logkv_mean(k, v)
+                
                 
                 # update the dynamics if necessary
                 if 0 < self._dynamics_update_freq and (num_timesteps+1)%self._dynamics_update_freq == 0:
                     dynamics_update_info = self.policy.update_dynamics(self.real_buffer)
-                    for k, v in dynamics_update_info.items():
-                        self.logger.logkv_mean(k, v)
+                    # for k, v in dynamics_update_info.items():
+                        # self.logger.logkv_mean(k, v)
                 
                 num_timesteps += 1
 
@@ -111,21 +113,33 @@ class MBPolicyTrainer:
                 norm_ep_rew_mean = self.eval_env.get_normalized_score(ep_reward_mean) * 100
                 norm_ep_rew_std = self.eval_env.get_normalized_score(ep_reward_std) * 100
                 last_10_performance.append(norm_ep_rew_mean)
+                
+                self.logger.log_scalars(
+                    "eval", 
+                    {
+                        "normalized_episode_reward": norm_ep_rew_mean, 
+                        "normalized_episode_reward_std": norm_ep_rew_std, 
+                        "episode_length": ep_length_mean, 
+                        "episode_length_std": ep_length_std
+                    }, 
+                    step=num_timesteps
+                )
+                self.logger.log_scalars(
+                    "", 
+                    loss, 
+                    step=num_timesteps
+                )
+                if rollout_info is not None:
+                    self.logger.log_scalars("rollout", rollout_info, step=num_timesteps)
+                if dynamics_update_info is not None:
+                    self.logger.log_scalars("dynamics_update", dynamics_update_info, step=num_timesteps)
+                    # self.logger.log_object(f"dynamics_{e}.pt", self.policy.dynamics.model.state_dict())
+                self.logger.log_object(f"policy_{e}.pt", self.policy.state_dict())
 
-                self.logger.logkv("eval/normalized_episode_reward", norm_ep_rew_mean)
-                self.logger.logkv("eval/normalized_episode_reward_std", norm_ep_rew_std)
-                self.logger.logkv("eval/episode_length", ep_length_mean)
-                self.logger.logkv("eval/episode_length_std", ep_length_std)
-                self.logger.set_timestep(num_timesteps)
-                self.logger.dumpkvs(exclude=["dynamics_training_progress"])
-            
-                # save checkpoint
-                torch.save(self.policy.state_dict(), os.path.join(self.logger.checkpoint_dir, "policy.pth"))
 
-        self.logger.log("total time: {:.2f}s".format(time.time() - start_time))
-        torch.save(self.policy.state_dict(), os.path.join(self.logger.model_dir, "policy.pth"))
-        self.policy.dynamics.save(self.logger.model_dir)
-        self.logger.close()
+        self.logger.info("total time: {:.2f}s".format(time.time() - start_time))
+        self.logger.log_object("policy_final.pt", self.policy.state_dict())
+        self.policy.dynamics.save(self.logger.output_path)
     
         return {"last_10_performance": np.mean(last_10_performance)}
 

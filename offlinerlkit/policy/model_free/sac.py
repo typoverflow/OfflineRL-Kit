@@ -135,7 +135,7 @@ class SACPolicy(BasePolicy):
 
         if self._is_auto_alpha:
             result["loss/alpha"] = alpha_loss.item()
-            result["alpha"] = self._alpha.item()
+            result["misc/alpha"] = self._alpha.item()
 
         return result
 
