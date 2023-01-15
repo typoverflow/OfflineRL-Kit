@@ -198,6 +198,8 @@ def train(args=get_args()):
     }
     log_path = os.path.join("log", args.algo_name, args.task)
     exp_name = [args.exp_name] if args.exp_name else []
+    if args.load_dynamics_path:
+        exp_name.append("dyn_pretrain")
     if args.permute is None:
         exp_name.append("normal")
     else:
@@ -223,9 +225,9 @@ def train(args=get_args()):
         oracle_dynamics=oracle_dynamics
     )
 
-    train
     if not load_dynamics_model:
         dynamics.train(real_buffer.sample_all(), logger, max_epochs_since_update=5)
+        exit()
     
     policy_trainer.train()
 
