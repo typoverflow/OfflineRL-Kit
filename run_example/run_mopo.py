@@ -205,7 +205,7 @@ def train(args=get_args()):
         "TensorboardLogger": {"activate": True}, 
         "WandbLogger": {"activate": True, "project": args.project, "entity": args.entity, "exp_args": args}
     }
-    log_path = os.path.join("log", args.algo_name, args.task)
+    log_path = os.path.join(args.log_path, args.algo_name, args.task)
     exp_name = "-".join([args.exp_name, args.task] if args.exp_name else [args.task])
     logger = CompositeLogger(log_path=log_path, name=exp_name, loggers_config=loggers_config)
 

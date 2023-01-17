@@ -62,6 +62,15 @@ for task in ${tasks[@]}; do
     for q in ${qualities[@]}; do
         dataset=${task}-${q}-v2
         dynamics_path=$dynamics_path_root/$task-$q-v2/$dynamics_name
+        while true
+        do
+            if [ -d ${dynamics_path} ]; then
+                break
+            else
+                echo sleep 600 for ${dynamics_path}
+                sleep 600
+            fi
+        done
         echo python3 run_example/run_mopo.py \
             --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
             --rollout-length ${rollout[${dataset}]}\
@@ -69,12 +78,13 @@ for task in ${tasks[@]}; do
             --load-dynamics-path ${dynamics_path} \
             ${rest_args[@]}
 
-        # python3 run_example/run_mopo.py \
-        #     --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
-        #     --rollout-length ${rollout[${dataset}]}\
-        #     --project $project --entity ${entity} \
-        #     --load-dynamics-path ${dynamics_path} \
-        #     ${rest_args[@]}
+        python3 run_example/run_mopo.py \
+            --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
+            --rollout-length ${rollout[${dataset}]}\
+            --project $project --entity ${entity} \
+            --load-dynamics-path ${dynamics_path} \
+            ${rest_args[@]}
+
     done
 done
 

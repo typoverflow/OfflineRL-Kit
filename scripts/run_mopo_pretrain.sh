@@ -78,7 +78,7 @@ for task in ${tasks[@]}; do
             --project $project --entity ${entity} \
             --train-dynamics-only ${only_pretrain} \
             --save-dynamics-path ${dynamics_path} \
-            --exp-name ${exp_name} \
+            --exp-name ${dynamics_name} \
             --log-path "log_mopo_pretrain" \
             ${rest_args[@]}
     done
