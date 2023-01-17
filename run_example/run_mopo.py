@@ -53,13 +53,13 @@ def get_args():
 
     parser.add_argument("--epoch", type=int, default=2000)
     parser.add_argument("--step-per-epoch", type=int, default=1000)
-    parser.add_argument("--eval_episodes", type=int, default=10)
+    parser.add_argument("--eval-episodes", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--device", type=str, default=None)
 
     parser.add_argument("--permute", type=str, default=None)
     parser.add_argument("--permute-amp", type=float, default=1.)
-    parser.add_argument("--exp_name", type=str, default=None)
+    parser.add_argument("--exp-name", type=str, default=None)
     
     parser.add_argument("--project", type=str, default=None)
     parser.add_argument("--entity", type=str, default=None)

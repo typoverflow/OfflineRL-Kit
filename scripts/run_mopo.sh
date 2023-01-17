@@ -5,9 +5,9 @@ task=$1
 quality=$2
 dynamics_name=$3
 rest_args=("${all_args[@]:3}")
-project="MOPO-D4RL-Dynamics"
+project="MOPO-D4RL"
 
-only_pretrain=1
+only_pretrain=0
 dynamics_path_root="mopo_dynamics/"
 
 if [ $task == "all" ]; then
@@ -66,21 +66,15 @@ for task in ${tasks[@]}; do
             --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
             --rollout-length ${rollout[${dataset}]}\
             --project $project --entity ${entity} \
-            --train-dynamics-only ${only_pretrain} \
-            --save-dynamics-path ${dynamics_path} \
-            --exp-name ${dynamics_name} \
-            --log-path "log_mopo_pretrain" \
+            --load-dynamics-path ${dynamics_path} \
             ${rest_args[@]}
 
-        python3 run_example/run_mopo.py \
-            --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
-            --rollout-length ${rollout[${dataset}]}\
-            --project $project --entity ${entity} \
-            --train-dynamics-only ${only_pretrain} \
-            --save-dynamics-path ${dynamics_path} \
-            --exp-name ${exp_name} \
-            --log-path "log_mopo_pretrain" \
-            ${rest_args[@]}
+        # python3 run_example/run_mopo.py \
+        #     --task ${dataset} --penalty-coef ${penalty[${dataset}]} \
+        #     --rollout-length ${rollout[${dataset}]}\
+        #     --project $project --entity ${entity} \
+        #     --load-dynamics-path ${dynamics_path} \
+        #     ${rest_args[@]}
     done
 done
 
