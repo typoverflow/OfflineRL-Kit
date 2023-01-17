@@ -132,7 +132,8 @@ class EnsembleDynamics(BaseDynamics):
         data: Dict,
         logger: Logger,
         max_epochs: Optional[float] = None,
-        max_epochs_since_update: int = 10
+        max_epochs_since_update: int = 10, 
+        save_path=None
     ) -> None:
         inputs, targets = self.format_samples_for_training(data)
         data_size = inputs.shape[0]
@@ -169,6 +170,14 @@ class EnsembleDynamics(BaseDynamics):
                 }, 
                 step=epoch
             )
+            logger.log_scalars(
+                "misc", 
+                {
+                    "max_logvar": self.model.max_logvar.data.detach().mean().cpu().item(), 
+                    "min_logvar": self.model.min_logvar.data.detach().mean().cpu().item(), 
+                }, 
+                step=epoch
+            )
             logger.info(f"Epoch: {epoch}, train loss {train_loss}, holdout loss {holdout_loss}")
             # shuffle data for each base learner
             data_idxes = shuffle_rows(data_idxes)
@@ -192,7 +201,8 @@ class EnsembleDynamics(BaseDynamics):
         indexes = self.select_elites(holdout_losses)
         self.model.set_elites(indexes)
         self.model.load_save()
-        save_path = os.path.join(logger.output_path, "pretrain")
+        if save_path is None:
+            save_path = os.path.join(logger.output_path, "pretrain")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         self.save(save_path)

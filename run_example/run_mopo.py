@@ -55,11 +55,18 @@ def get_args():
     parser.add_argument("--step-per-epoch", type=int, default=1000)
     parser.add_argument("--eval_episodes", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--device", type=str, default=select_free_cuda())
+    parser.add_argument("--device", type=str, default=None)
 
     parser.add_argument("--permute", type=str, default=None)
     parser.add_argument("--permute-amp", type=float, default=1.)
     parser.add_argument("--exp_name", type=str, default=None)
+    
+    parser.add_argument("--project", type=str, default=None)
+    parser.add_argument("--entity", type=str, default=None)
+    parser.add_argument("--log-path", type=str, default="./log")
+    parser.add_argument("--train-dynamics-only", type=int, default=0)
+    parser.add_argument("--max-epochs-since-update", type=int, default=5)
+    parser.add_argument("--save-dynamics-path", type=str, default=None)
 
     return parser.parse_args()
 
@@ -73,6 +80,8 @@ def train(args=get_args()):
     args.obs_shape = env.observation_space.shape
     args.action_dim = np.prod(env.action_space.shape)
     args.max_action = env.action_space.high[0]
+    if args.device is None:
+        args.device = select_free_cuda().__str__()
 
     # seed
     random.seed(args.seed)
@@ -114,7 +123,7 @@ def train(args=get_args()):
         alpha = args.alpha
 
     # create dynamics
-    load_dynamics_model = True if args.load_dynamics_path else False
+    # load_dynamics_model = True if args.load_dynamics_path else False
     dynamics_model = EnsembleDynamicsModel(
         obs_dim=np.prod(args.obs_shape),
         action_dim=args.action_dim,
@@ -194,18 +203,10 @@ def train(args=get_args()):
         "FileLogger": {"activate": True}, 
         # "ColoredLogger": {"activate": True}, 
         "TensorboardLogger": {"activate": True}, 
-        "WandbLogger": {"activate": True, "project": args.algo_name+"-"+args.task, "entity": "typoverflow", "exp_args": args}
+        "WandbLogger": {"activate": True, "project": args.project, "entity": args.entity, "exp_args": args}
     }
     log_path = os.path.join("log", args.algo_name, args.task)
-    exp_name = [args.exp_name] if args.exp_name else []
-    if args.load_dynamics_path:
-        exp_name.append("dyn_pretrain")
-    if args.permute is None:
-        exp_name.append("normal")
-    else:
-        exp_name.append(args.permute)
-        exp_name.append(args.permute_amp)
-    exp_name = "-".join(exp_name)
+    exp_name = "-".join([args.exp_name, args.task] if args.exp_name else [args.task])
     logger = CompositeLogger(log_path=log_path, name=exp_name, loggers_config=loggers_config)
 
     # create policy trainer
@@ -225,9 +226,10 @@ def train(args=get_args()):
         oracle_dynamics=oracle_dynamics
     )
 
-    if not load_dynamics_model:
-        dynamics.train(real_buffer.sample_all(), logger, max_epochs_since_update=5)
-        exit()
+    if args.load_dynamics_path is None:
+        dynamics.train(real_buffer.sample_all(), logger, max_epochs_since_update=args.max_epochs_since_update, save_path=args.save_dynamics_path)
+        if args.train_dynamics_only: 
+            exit()
     
     policy_trainer.train()
 
