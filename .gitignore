@@ -9,3 +9,5 @@
 **/*.txt
 **/.vscode
 **/_log
+log*
+mopo*

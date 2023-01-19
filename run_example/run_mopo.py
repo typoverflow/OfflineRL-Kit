@@ -203,7 +203,7 @@ def train(args=get_args()):
         "FileLogger": {"activate": True}, 
         # "ColoredLogger": {"activate": True}, 
         "TensorboardLogger": {"activate": True}, 
-        "WandbLogger": {"activate": True, "project": args.project, "entity": args.entity, "exp_args": args}
+        "WandbLogger": {"activate": True, "project": args.project, "entity": args.entity, "config": args}
     }
     log_path = os.path.join(args.log_path, args.algo_name, args.task)
     exp_name = "-".join([args.exp_name, args.task] if args.exp_name else [args.task])
