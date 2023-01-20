@@ -22,6 +22,7 @@ from offlinerlkit.utils.logger import Logger, make_log_dirs
 from offlinerlkit.policy_trainer import MBPolicyTrainer
 from offlinerlkit.policy import RAMBOPolicy
 
+from UtilsRL.exp import select_free_cuda
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -52,20 +53,29 @@ def get_args():
     parser.add_argument("--adv-weight", type=float, default=0)
     parser.add_argument("--model-retain-epochs", type=int, default=5)
     parser.add_argument("--real-ratio", type=float, default=0.5)
-    parser.add_argument("--load-dynamics-path", type=str, default=None)
+    # parser.add_argument("--load-dynamics-path", type=str, default=None)
 
     parser.add_argument("--epoch", type=int, default=2000)
     parser.add_argument("--step-per-epoch", type=int, default=1000)
     parser.add_argument("--eval_episodes", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", type=str, default=None)
 
     parser.add_argument("--include-ent-in-adv", type=int, default=0)
     parser.add_argument("--do-bc", type=int, default=1)
-    parser.add_argument("--load-bc-path", type=str, default=None)
+    # parser.add_argument("--load-bc-path", type=str, default=None)
     parser.add_argument("--bc-lr", type=float, default=1e-4)
     parser.add_argument("--bc-epoch", type=int, default=50)
     parser.add_argument("--bc-batch-size", type=int, default=256)
+    
+    parser.add_argument("--project", type=str, default=None)
+    parser.add_argument("--entity", type=str, default=None)
+    parser.add_argument("--log-path", type=str, default="./log")
+    parser.add_argument("--pretrain-only", type=int, default=0)
+    parser.add_argument("--max-epochs-since-update", type=int, default=10)
+    # parser.add_argument("--save-dynamics-path", type=str, default=None)
+    parser.add_argument("--save-pretrain-path", type=str, default=None)
+    parser.add_argument("--load-pretrain-path", type=str, default=None)
 
     return parser.parse_args()
 
@@ -79,7 +89,9 @@ def train(args=get_args()):
     args.obs_shape = env.observation_space.shape
     args.action_dim = np.prod(env.action_space.shape)
     args.max_action = env.action_space.high[0]
-
+    if args.device is None:
+        args.device = select_free_cuda().__str__()
+        
     # seed
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -106,8 +118,8 @@ def train(args=get_args()):
     critic2_optim = torch.optim.Adam(critic2.parameters(), lr=args.critic_lr)
 
     # CHECK: do anealing?
-    # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(actor_optim, args.epoch)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(actor_optim, 1, -1)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(actor_optim, args.epoch)
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(actor_optim, 1, -1)
     
     if args.auto_alpha:
         target_entropy = args.target_entropy if args.target_entropy \
@@ -191,17 +203,27 @@ def train(args=get_args()):
         device=args.device
     ).to(args.device)
 
-    # log
-    log_dirs = make_log_dirs(args.task, args.algo_name, args.seed, vars(args))
-    # key: output file name, value: output handler type
-    output_config = {
-        "consoleout_backup": "stdout",
-        "policy_training_progress": "csv",
-        "dynamics_training_progress": "csv",
-        "tb": "tensorboard"
+    # # log
+    # log_dirs = make_log_dirs(args.task, args.algo_name, args.seed, vars(args))
+    # # key: output file name, value: output handler type
+    # output_config = {
+    #     "consoleout_backup": "stdout",
+    #     "policy_training_progress": "csv",
+    #     "dynamics_training_progress": "csv",
+    #     "tb": "tensorboard"
+    # }
+    # logger = Logger(log_dirs, output_config)
+    # logger.log_hyperparameters(vars(args))
+    
+    from UtilsRL.logger import CompositeLogger
+    loggers_config = {
+        "FileLogger": {"activate": True}, 
+        "TensorboardLogger": {"activate": True}, 
+        "WandbLogger": {"activate": True, "project": args.project, "entity": args.entity, "config": args}
     }
-    logger = Logger(log_dirs, output_config)
-    logger.log_hyperparameters(vars(args))
+    log_path = os.path.join(args.log_path, args.algo_name, args.task)
+    exp_name = "-".join([args.exp_name, args.task] if args.exp_name else [args.task])
+    logger = CompositeLogger(log_path=log_path, name=exp_name, loggers_config=loggers_config)
 
     # create policy trainer
     policy_trainer = MBPolicyTrainer(
@@ -224,17 +246,16 @@ def train(args=get_args()):
     )
 
     # train
-    if args.load_bc_path:
-        policy.load(args.load_bc_path)
+    if args.load_pretrain_path is None:
+        policy.pretrain(real_buffer.sample_all(), logger, args.bc_epoch, args.bc_batch_size, args.bc_lr, save_path=args.save_pretrain_path)
+        dynamics.train(real_buffer.sample_all(), logger, max_epochs_since_update=args.max_epochs_since_update, save_path=args.save_pretrain_path)
+        if args.pretrain_only:
+            exit()
+    else:
+        dynamics.load(args.load_pretrain_path)
+        policy.load(args.load_pretrain_path)
         policy.to(args.device)
-    else:
-        policy.pretrain(real_buffer.sample_all(), args.bc_epoch, args.bc_batch_size, args.bc_lr, logger)
-    if args.load_dynamics_path:
-        dynamics.load(args.load_dynamics_path)
-        # dynamics.to(args.device)
-    else:
-        dynamics.train(real_buffer.sample_all(), logger)
-
+    
     policy_trainer.train()
 
 

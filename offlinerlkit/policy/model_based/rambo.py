@@ -61,14 +61,14 @@ class RAMBOPolicy(MOPOPolicy):
     def load(self, path):
         self.load_state_dict(torch.load(os.path.join(path, "rambo_pretrain.pt"), map_location="cpu"))
 
-    def pretrain(self, data: Dict, n_epoch, batch_size, lr, logger) -> None:
+    def pretrain(self, data: Dict, logger, n_epoch, batch_size, lr, save_path) -> None:
         self._bc_optim = torch.optim.Adam(self.actor.parameters(), lr=lr)
         observations = data["observations"]
         actions = data["actions"]
         sample_num = observations.shape[0]
         idxs = np.arange(sample_num)
 
-        logger.log("Pretraining policy")
+        logger.info("Pretraining policy")
         self.actor.train()
         for i_epoch in range(n_epoch):
             np.random.shuffle(idxs)
@@ -86,11 +86,8 @@ class RAMBOPolicy(MOPOPolicy):
                 bc_loss.backward()
                 self._bc_optim.step()
                 sum_loss += bc_loss.cpu().item()
-            print(f"Epoch {i_epoch}, mean bc loss {sum_loss/i_batch}")
-            # logger.logkv("loss/pretrain_bc", sum_loss/i_batch)
-            # logger.set_timestep(i_epoch)
-            # logger.dumpkvs(exclude)
-        torch.save(self.state_dict(), os.path.join(logger.model_dir, "rambo_pretrain.pt"))
+            logger.log_scalar("bc_pretrain/bc_loss(neg loglikelihood)", sum_loss/i_batch, step=i_epoch)
+        torch.save(self.state_dict(), os.path.join(save_path, "rambo_pretrain.pt"))
 
     def update_dynamics(
         self, 
