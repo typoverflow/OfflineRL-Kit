@@ -87,6 +87,11 @@ class RAMBOPolicy(MOPOPolicy):
                 self._bc_optim.step()
                 sum_loss += bc_loss.cpu().item()
             logger.log_scalar("bc_pretrain/bc_loss(neg loglikelihood)", sum_loss/i_batch, step=i_epoch)
+            logger.info(f"bc_pretrain: epoch {i_epoch}, bc loss {sum_loss/i_batch}")
+        if save_path is None:
+            save_path = os.path.join(logger.output_path, "pretrain")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
         torch.save(self.state_dict(), os.path.join(save_path, "rambo_pretrain.pt"))
 
     def update_dynamics(

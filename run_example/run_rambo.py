@@ -68,6 +68,7 @@ def get_args():
     parser.add_argument("--bc-epoch", type=int, default=50)
     parser.add_argument("--bc-batch-size", type=int, default=256)
     
+    parser.add_argument("--exp-name", type=str, default=None)
     parser.add_argument("--project", type=str, default=None)
     parser.add_argument("--entity", type=str, default=None)
     parser.add_argument("--log-path", type=str, default="./log")
