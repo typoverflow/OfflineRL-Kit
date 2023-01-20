@@ -63,7 +63,7 @@ for task in ${tasks[@]}; do
         dataset=${task}-${q}-v2
         pretrain_path=$pretrain_path_root/$task-$q-v2/$pretrain_name
         echo python3 run_example/run_rambo.py \
-            --task ${dataset} --adv-weight ${adv-weight[${dataset}]} \
+            --task ${dataset} --adv-weight ${adv_weight[${dataset}]} \
             --rollout-length ${rollout[${dataset}]}\
             --project $project --entity ${entity} \
             --pretrain_only ${pretrain_only} \
