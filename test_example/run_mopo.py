@@ -169,6 +169,8 @@ def train(args=get_args()):
 
     from UtilsRL.logger import CompositeLogger
     from offlinerlkit.utils.eval import test_actors
+    args.name = "mopo"
+    args.env = args.task    # this is for compatibility with CORL
     loggers_config = {
         # "FileLogger": {"activate": True}, 
         # "ColoredLogger": {"activate": True}, 
