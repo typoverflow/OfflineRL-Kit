@@ -69,12 +69,17 @@ class ReplayBuffer:
         self._ptr = (self._ptr + batch_size) % self._max_size
         self._size = min(self._size + batch_size, self._max_size)
     
-    def load_dataset(self, dataset: Dict[str, np.ndarray]) -> None:
+    def load_dataset(self, dataset: Dict[str, np.ndarray], data_limit: None) -> None:
+        if data_limit is None:
+            data_limit = 1e10
         observations = np.array(dataset["observations"], dtype=self.obs_dtype)
-        next_observations = np.array(dataset["next_observations"], dtype=self.obs_dtype)
-        actions = np.array(dataset["actions"], dtype=self.action_dtype)
-        rewards = np.array(dataset["rewards"], dtype=np.float32).reshape(-1, 1)
-        terminals = np.array(dataset["terminals"], dtype=np.float32).reshape(-1, 1)
+        data_limit = min(data_limit, observations.shape[0])
+        
+        observations = np.array(dataset["observations"], dtype=self.obs_type)[:data_limit]
+        next_observations = np.array(dataset["next_observations"], dtype=self.obs_dtype)[:data_limit]
+        actions = np.array(dataset["actions"], dtype=self.action_dtype)[:data_limit]
+        rewards = np.array(dataset["rewards"], dtype=np.float32).reshape(-1, 1)[:data_limit]
+        terminals = np.array(dataset["terminals"], dtype=np.float32).reshape(-1, 1)[:data_limit]
 
         self.observations = observations
         self.next_observations = next_observations

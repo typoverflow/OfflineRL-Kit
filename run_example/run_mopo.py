@@ -68,6 +68,8 @@ def get_args():
     parser.add_argument("--max-epochs-since-update", type=int, default=5)
     parser.add_argument("--save-dynamics-path", type=str, default=None)
 
+    parser.add_argument("--data-limit", type=float, default=1e10)
+
     return parser.parse_args()
 
 
@@ -175,7 +177,7 @@ def train(args=get_args()):
         action_dtype=np.float32,
         device=args.device
     )
-    real_buffer.load_dataset(dataset)
+    real_buffer.load_dataset(dataset, args.data_limit)
     fake_buffer = ReplayBuffer(
         buffer_size=args.rollout_batch_size*args.rollout_length*args.model_retain_epochs,
         obs_shape=args.obs_shape,
